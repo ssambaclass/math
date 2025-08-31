@@ -1,0 +1,129 @@
+import tkinter as tk
+import random
+import time
+import csv
+
+class MathQuiz:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("수학 문제 퀴즈")
+        self.root.geometry("400x300")
+
+        self.level = 1
+        self.score = 0
+        self.total = 0
+        self.time_limit = 10
+        self.start_time = None
+        self.question = ""
+        self.answer = 0
+        self.wrong_problems = []
+
+        # 난이도 선택
+        self.level_label = tk.Label(root, text="난이도 선택 (1:쉬움, 2:보통, 3:어려움):")
+        self.level_label.pack()
+        self.level_entry = tk.Entry(root)
+        self.level_entry.pack()
+        self.start_btn = tk.Button(root, text="시작하기", command=self.start_quiz)
+        self.start_btn.pack()
+
+        # 문제 출력
+        self.q_label = tk.Label(root, text="", font=("Arial", 16))
+        self.q_label.pack(pady=10)
+
+        # 입력창
+        self.answer_entry = tk.Entry(root)
+        self.answer_entry.pack()
+        self.answer_entry.bind("<Return>", self.check_answer)
+
+        # 결과 출력
+        self.result_label = tk.Label(root, text="", font=("Arial", 12))
+        self.result_label.pack(pady=10)
+
+        # 점수
+        self.score_label = tk.Label(root, text="")
+        self.score_label.pack()
+
+    def generate_problem(self):
+        if self.level == 1:
+            a, b = random.randint(1, 9), random.randint(1, 9)
+        elif self.level == 2:
+            a, b = random.randint(10, 99), random.randint(10, 99)
+        else:
+            a, b = random.randint(100, 999), random.randint(100, 999)
+
+        op = random.choice(['+', '-', '*', '/'])
+        self.question = f"{a} {op} {b}"
+        self.answer = round(eval(self.question), 2)
+        self.q_label.config(text=f"문제 {self.total+1}: {self.question} = ?")
+        self.start_time = time.time()
+
+    def start_quiz(self):
+        try:
+            self.level = int(self.level_entry.get())
+        except:
+            self.level = 1
+        self.score = 0
+        self.total = 0
+        self.wrong_problems = []
+        self.generate_problem()
+        self.result_label.config(text="")
+        self.score_label.config(text="점수: 0")
+
+    def check_answer(self, event=None):
+        user_input = self.answer_entry.get()
+        self.answer_entry.delete(0, tk.END)
+
+        elapsed = time.time() - self.start_time
+        if elapsed > self.time_limit:
+            self.result_label.config(text=f"시간 초과 정답은 {self.answer}")
+            self.wrong_problems.append((self.question, self.answer))
+        else:
+            try:
+                user = float(user_input)
+                if user == self.answer:
+                    self.result_label.config(text="정답")
+                    self.score += 1
+                else:
+                    self.result_label.config(text=f"오답 정답은 {self.answer}")
+                    self.wrong_problems.append((self.question, self.answer))
+            except:
+                self.result_label.config(text="숫자를 입력하세요.")
+                return
+
+        self.total += 1
+        self.score_label.config(text=f"점수: {self.score}/{self.total}")
+
+        if self.total >= 5:  # 문제 개수 제한
+            self.end_quiz()
+        else:
+            self.generate_problem()
+
+    def end_quiz(self):
+        self.q_label.config(text="퀴즈 종료")
+        self.result_label.config(text=f"최종 점수: {self.score}/{self.total}")
+        self.save_result()
+
+        if self.wrong_problems:
+            wrong_text = "오답 복습:\n"
+            for q, ans in self.wrong_problems:
+                wrong_text += f"{q} = {ans}\n"
+            self.show_popup("오답 복습", wrong_text)
+
+    def save_result(self):
+        with open("results_gui.csv", mode="a", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow([time.strftime("%Y-%m-%d %H:%M:%S"),
+                             self.level, self.score, self.total])
+        print("결과가 results_gui.csv에 저장되었습니다.")
+
+    def show_popup(self, title, message):
+        popup = tk.Toplevel(self.root)
+        popup.title(title)
+        tk.Label(popup, text=message, justify="left").pack(padx=10, pady=10)
+        tk.Button(popup, text="닫기", command=popup.destroy).pack(pady=5)
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = MathQuiz(root)
+    root.mainloop()
